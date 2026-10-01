@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Diário de Academia</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Arial, sans-serif;
+      background: #101310;
+      color: #edf3ed;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 960px; margin: auto; padding: 28px 18px; }
+    h1 { margin-bottom: 6px; }
+    h2 { margin-top: 0; }
+    p { line-height: 1.5; }
+    .muted { color: #a5b4a5; }
+    nav, .actions, .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 24px 0;
+    }
+    button, input, select {
+      font: inherit;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    button {
+      cursor: pointer;
+      border: none;
+      background: #283328;
+      color: #edf3ed;
+      font-weight: bold;
+    }
+    button:hover { filter: brightness(1.15); }
+    button.active, .primary { background: #a3e635; color: #152005; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .danger { background: #452326; color: #ffb4b4; }
+    input, select {
+      width: 100%;
+      border: 1px solid #3b493b;
+      background: #121912;
+      color: #fff;
+      margin-top: 6px;
+    }
+    input[type="checkbox"] { width: 23px; height: 23px; }
+    label { display: block; font-size: 14px; color: #b9c6b9; }
+    .card {
+      background: #1b231b;
+      border: 1px solid #303d30;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 12px 0;
+    }
+    .stat { flex: 1; min-width: 130px; }
+    .stat strong { display: block; font-size: 30px; color: #a3e635; }
+    .exercise { border-top: 1px solid #354035; padding-top: 16px; margin-top: 16px; }
+    .timer { font-size: 48px; font-weight: bold; margin: 12px 0; }
+    .check { display: flex; align-items: center; gap: 10px; }
+    .check input { margin: 0; }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 3px solid #a3e635; outline-offset: 3px; }
+    @media (max-width: 550px) {
+      .grid { grid-template-columns: 1fr; }
+      nav button { flex: 1; }
+      h1 { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="muted">SEU PROGRESSO COMEÇA AQUI</span>
+    <h1>🏋️ Diário de Academia</h1>
+    <p class="muted">Organize seus treinos e acompanhe sua evolução.</p>
+  </header>
+
+  <div class="stats">
+    <div class="card stat"><strong id="totalPlans">0</strong>Treinos cadastrados</div>
+    <div class="card stat"><strong id="totalSessions">0</strong>Sessões concluídas</div>
+  </div>
+
+  <nav aria-label="Navegação principal">
+    <button class="active" data-tab="plans">Meus treinos</button>
+    <button data-tab="today">Treino do dia</button>
+    <button data-tab="history">Histórico</button>
+  </nav>
+
+  <section id="plans">
+    <button class="primary" id="newPlan">+ Criar treino</button>
+    <div id="planList" style="margin-top:16px"></div>
+
+    <form id="editor" class="card" hidden>
+      <h2 id="editorTitle">Novo treino</h2>
+      <label>Nome do treino
+        <input id="planName" maxlength="80" placeholder="Ex.: Treino A — Peito e tríceps" required>
+      </label>
+      <div id="exerciseFields"></div>
+      <div class="actions">
+        <button type="button" id="addExercise">+ Exercício</button>
+        <button type="submit" class="primary">Salvar treino</button>
+        <button type="button" id="cancelEdit">Cancelar</button>
+      </div>
+    </form>
+  </section>
+
+  <section id="today" hidden>
+    <div class="card">
+      <h2>Treino do dia</h2>
+      <label>Escolha seu treino<select id="planSelect"></select></label>
+      <div class="actions">
+        <button id="startWorkout" class="primary">Iniciar treino</button>
+      </div>
+    </div>
+
+    <div id="sessionPanel" hidden>
+      <div class="card">
+        <h2>Descanso</h2>
+        <label>Tempo em segundos
+          <input id="restSeconds" type="number" min="1" max="3600" value="60">
+        </label>
+        <div class="timer" id="timer" role="timer">01:00</div>
+        <button id="startTimer">Iniciar descanso</button>
+        <button id="stopTimer">Parar</button>
+        <p id="timerStatus" class="muted" aria-live="polite"></p>
+      </div>
+
+      <form id="sessionForm" class="card">
+        <h2 id="sessionTitle"></h2>
+        <p class="muted">Registre os valores realizados e marque os exercícios concluídos.</p>
+        <div id="sessionExercises"></div>
+        <div class="actions">
+          <button class="primary" type="submit">Finalizar e salvar</button>
+          <button id="cancelSession" class="danger" type="button">Cancelar treino</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section id="history" hidden>
+    <div class="card">
+      <h2>Evolução das cargas</h2>
+      <label>Exercício<select id="progressSelect"></select></label>
+      <div id="progressList"></div>
+    </div>
+    <div id="historyList"></div>
+  </section>
+  <p class="muted">Os dados ficam salvos somente neste navegador. Limpar os dados do navegador apaga os registros.</p>
+</main>
+
+<script>
+  const $ = selector => document.querySelector(selector);
+  const KEY = "diario-academia-v1";
+  const uid = () => crypto.randomUUID();
+  const escapeHTML = value => String(value).replace(/[&<>"']/g, char => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[char]);
+
+  function initialData() {
+    return {
+      plans: [{
+        id: uid(),
+        name: "Treino A — Peito e tríceps",
+        exercises: [
+          { name: "Supino reto", sets: 3, reps: 12, weight: 0, notes: "" },
+          { name: "Tríceps na polia", sets: 3, reps: 12, weight: 0, notes: "" }
+        ]
+      }],
+      sessions: []
+    };
+  }
+
+  let data;
+  try {
+    const saved = localStorage.getItem(KEY);
+    data = saved ? JSON.parse(saved) : initialData();
+    if (!Array.isArray(data.plans) || !Array.isArray(data.sessions)) {
+      throw new Error("Formato inválido");
+    }
+  } catch {
+    data = { plans: [], sessions: [] };
+    alert("Não foi possível carregar os dados salvos neste navegador.");
+  }
+
+  let editingId = null;
+  let activeSession = null;
+  let timerInterval = null;
+
+  function persist(next) {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(next));
+      data = next;
+      render();
+      return true;
+    } catch {
+      alert("Não foi possível salvar. Verifique o espaço e as permissões do navegador.");
+      return false;
+    }
+  }
+
+  function showTab(id) {
+    ["plans", "today", "history"].forEach(tab => {
+      $("#" + tab).hidden = tab !== id;
+    });
+    document.querySelectorAll("[data-tab]").forEach(button => {
+      button.classList.toggle("active", button.dataset.tab === id);
+    });
+  }
+
+  document.querySelectorAll("[data-tab]").forEach(button => {
+    button.onclick = () => showTab(button.dataset.tab);
+  });
+
+  function render() {
+    $("#totalPlans").textContent = data.plans.length;
+    $("#totalSessions").textContent = data.sessions.length;
+
+    $("#planList").innerHTML = data.plans.map(plan => `
+      <article class="card">
+        <h2>${escapeHTML(plan.name)}</h2>
+        <p class="muted">${plan.exercises.length} exercícios</p>
+        ${plan.exercises.map(ex => `
+          <p><strong>${escapeHTML(ex.name)}</strong>
+          — ${ex.sets} × ${ex.reps} · ${ex.weight} kg</p>
+        `).join("")}
+        <div class="actions">
+          <button data-edit="${plan.id}">Editar</button>
+          <button class="danger" data-delete="${plan.id}">Excluir</button>
+        </div>
+      </article>
+    `).join("") || '<p class="muted">Crie seu primeiro treino para começar.</p>';
+
+    const previousSelection = $("#planSelect").value;
+    $("#planSelect").innerHTML = data.plans.map(plan =>
+      `<option value="${plan.id}">${escapeHTML(plan.name)}</option>`
+    ).join("") || '<option value="">Nenhum treino cadastrado</option>';
+
+    if (data.plans.some(plan => plan.id === previousSelection)) {
+      $("#planSelect").value = previousSelection;
+    }
+    $("#startWorkout").disabled = !data.plans.length || !!activeSession;
+
+    renderHistory();
+  }
+
+  function exerciseFields(ex = {}) {
+    const row = document.createElement("div");
+    row.className = "exercise";
+    row.innerHTML = `
+      <label>Exercício
+        <input data-field="name" maxlength="100" value="${escapeHTML(ex.name || "")}" required>
+      </label>
+      <div class="grid">
+        <label>Séries
+          <input data-field="sets" type="number" min="1" max="100" value="${ex.sets ?? 3}" required>
+        </label>
+        <label>Repetições
+          <input data-field="reps" type="number" min="1" max="1000" value="${ex.reps ?? 12}" required>
+        </label>
+        <label>Carga (kg)
+          <input data-field="weight" type="number" min="0" max="2000" step="0.25" value="${ex.weight ?? 0}" required>
+        </label>
+      </div>
+      <label>Observações
+        <input data-field="notes" maxlength="300" value="${escapeHTML(ex.notes || "")}">
+      </label>
+      <div class="actions">
+        <button type="button" class="danger">Remover exercício</button>
+      </div>
+    `;
+    row.querySelector("button").onclick = () => row.remove();
+    $("#exerciseFields").append(row);
+  }
+
+  function openEditor(id = null) {
+    editingId = id;
+    const plan = data.plans.find(item => item.id === id);
+    $("#editorTitle").textContent = plan ? "Editar treino" : "Novo treino";
+    $("#planName").value = plan?.name || "";
+    $("#exerciseFields").innerHTML = "";
+    (plan?.exercises || [{}]).forEach(exerciseFields);
+    $("#editor").hidden = false;
+    $("#planName").focus();
+  }
+
+  $("#newPlan").onclick = () => openEditor();
+  $("#addExercise").onclick = () => exerciseFields();
+  $("#cancelEdit").onclick = () => { $("#editor").hidden = true; };
+
+  $("#planList").onclick = event => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    if (button.dataset.edit) openEditor(button.dataset.edit);
+    if (button.dataset.delete && confirm("Excluir este treino? O histórico será mantido.")) {
+      const id = button.dataset.delete;
+      if (persist({ ...data, plans: data.plans.filter(plan => plan.id !== id) })) {
+        if (editingId === id) $("#editor").hidden = true;
+      }
+    }
+  };
+
+  $("#editor").onsubmit = event => {
+    event.preventDefault();
+    const name = $("#planName").value.trim();
+    const exercises = [...$("#exerciseFields").children].map(row => {
+      const value = field => row.querySelector(`[data-field="${field}"]`).value;
+      return {
+        name: value("name").trim(),
+        sets: Number(value("sets")),
+        reps: Number(value("reps")),
+        weight: Number(value("weight")),
+        notes: value("notes").trim()
+      };
+    });
+
+    if (!name || !exercises.length || exercises.some(ex => !ex.name)) {
+      alert("Informe o nome do treino e pelo menos um exercício com nome.");
+      return;
+    }
+
+    const plan = { id: editingId || uid(), name, exercises };
+    const plans = editingId
+      ? data.plans.map(item => item.id === editingId ? plan : item)
+      : [...data.plans, plan];
+
+    if (persist({ ...data, plans })) $("#editor").hidden = true;
+  };
+
+  $("#startWorkout").onclick = () => {
+    const plan = data.plans.find(item => item.id === $("#planSelect").value);
+    if (!plan || activeSession) return;
+
+    activeSession = JSON.parse(JSON.stringify(plan));
+    activeSession.startedAt = new Date().toISOString();
+
+    $("#sessionTitle").textContent = plan.name;
+    $("#sessionExercises").innerHTML = plan.exercises.map((ex, index) => `
+      <div class="exercise" data-index="${index}">
+        <h3>${escapeHTML(ex.name)}</h3>
+        <p class="muted">${escapeHTML(ex.notes)}</p>
+        <div class="grid">
+          <label>Séries realizadas
+            <input data-field="sets" type="number" min="1" max="100" value="${ex.sets}" required>
+          </label>
+          <label>Repetições por série
+            <input data-field="reps" type="number" min="1" max="1000" value="${ex.reps}" required>
+          </label>
+          <label>Carga (kg)
+            <input data-field="weight" type="number" min="0" max="2000" step="0.25" value="${ex.weight}" required>
+          </label>
+        </div>
+        <label class="check"><input type="checkbox"> Exercício concluído</label>
+      </div>
+    `).join("");
+
+    $("#sessionPanel").hidden = false;
+    $("#startWorkout").disabled = true;
+    $("#planSelect").disabled = true;
+    $("#sessionPanel").scrollIntoView({ behavior: "smooth" });
+  };
+
+  function stopTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  $("#stopTimer").onclick = () => {
+    stopTimer();
+    $("#timerStatus").textContent = "Cronômetro parado.";
+  };
+
+  $("#startTimer").onclick = () => {
+    const input = $("#restSeconds");
+    if (!input.reportValidity() || !input.value) return;
+
+    stopTimer();
+    const deadline = Date.now() + Number(input.value) * 1000;
+    $("#timerStatus").textContent = "Descansando…";
+
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      const minutes = String(Math.floor(remaining / 60)).padStart(2, "0");
+      const seconds = String(remaining % 60).padStart(2, "0");
+      $("#timer").textContent = `${minutes}:${seconds}`;
+      if (!remaining) {
+        stopTimer();
+        $("#timerStatus").textContent = "Descanso concluído! Hora da próxima série.";
+      }
+    };
+
+    tick();
+    timerInterval = setInterval(tick, 250);
+  };
+
+  function closeSession() {
+    stopTimer();
+    activeSession = null;
+    $("#sessionPanel").hidden = true;
+    $("#planSelect").disabled = false;
+    $("#timer").textContent = "01:00";
+    $("#timerStatus").textContent = "";
+    render();
+  }
+
+  $("#cancelSession").onclick = () => {
+    if (confirm("Cancelar este treino sem salvar?")) closeSession();
+  };
+
+  $("#sessionForm").onsubmit = event => {
+    event.preventDefault();
+    if (!activeSession) return;
+
+    const rows = [...$("#sessionExercises").children];
+    const completed = rows.filter(row => row.querySelector('[type="checkbox"]').checked);
+    if (!completed.length) {
+      alert("Marque pelo menos um exercício como concluído.");
+      return;
+    }
+    if (completed.length < rows.length && !confirm("Salvar apenas os exercícios concluídos?")) return;
+
+    const exercises = completed.map(row => ({
+      ...activeSession.exercises[Number(row.dataset.index)],
+      sets: Number(row.querySelector('[data-field="sets"]').value),
+      reps: Number(row.querySelector('[data-field="reps"]').value),
+      weight: Number(row.querySelector('[data-field="weight"]').value)
+    }));
+
+    const session = {
+      id: uid(),
+      name: activeSession.name,
+      startedAt: activeSession.startedAt,
+      date: new Date().toISOString(),
+      exercises
+    };
+
+    if (persist({ ...data, sessions: [session, ...data.sessions] })) {
+      closeSession();
+      showTab("history");
+    }
+  };
+
+  const formatDate = date => new Date(date).toLocaleString("pt-BR", {
+    dateStyle: "short", timeStyle: "short"
+  });
+
+  function renderHistory() {
+    $("#historyList").innerHTML = data.sessions.map(session => `
+      <article class="card">
+        <h2>${escapeHTML(session.name)}</h2>
+        <p class="muted">${formatDate(session.date)}</p>
+        ${session.exercises.map(ex => `
+          <p><strong>${escapeHTML(ex.name)}</strong>
+          — ${ex.sets} × ${ex.reps} · ${ex.weight} kg</p>
+        `).join("")}
+        <button class="danger" data-session="${session.id}">Excluir registro</button>
+      </article>
+    `).join("") || '<p class="muted">Seus treinos concluídos aparecerão aqui.</p>';
+
+    const previous = $("#progressSelect").value;
+    const names = [...new Set(data.sessions.flatMap(session =>
+      session.exercises.map(ex => ex.name)
+    ))].sort();
+
+    $("#progressSelect").innerHTML = names.map(name =>
+      `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`
+    ).join("") || '<option value="">Nenhum exercício registrado</option>';
+
+    if (names.includes(previous)) $("#progressSelect").value = previous;
+    renderProgress();
+  }
+
+  function renderProgress() {
+    const name = $("#progressSelect").value;
+    const records = data.sessions.slice().reverse().flatMap(session =>
+      session.exercises.filter(ex => ex.name === name).map(ex => ({
+        date: session.date, ...ex
+      }))
+    );
+
+    $("#progressList").innerHTML = records.map(record => `
+      <p>${formatDate(record.date)} — <strong>${record.weight} kg</strong>
+      <span class="muted">· ${record.sets} × ${record.reps}</span></p>
+    `).join("") || '<p class="muted">Finalize um treino para acompanhar sua evolução.</p>';
+  }
+
+  $("#progressSelect").onchange = renderProgress;
+  $("#historyList").onclick = event => {
+    const button = event.target.closest("[data-session]");
+    if (button && confirm("Excluir este registro do histórico?")) {
+      persist({
+        ...data,
+        sessions: data.sessions.filter(session => session.id !== button.dataset.session)
+      });
+    }
+  };
+
+  window.addEventListener("beforeunload", event => {
+    if (activeSession) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+  });
+
+  render();
+</script>
+</body>
+</html>
